@@ -7,19 +7,29 @@
     "build": "next build --webpack",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test lib/*.test.ts"
+    "test": "node --import tsx --test lib/*.test.ts",
+    "test:db": "node tests/database.mjs",
+    "format": "prettier --write app components lib tests scripts proxy.ts README.md",
+    "setup:owner": "node --env-file=.env.local scripts/bootstrap-owner.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.118.0",
+    "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0"
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
+    "@electric-sql/pglite": "0.5.10",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "tsx": "^4.20.0"
+    "prettier": "3.9.10",
+    "supabase": "2.121.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
   }
 }

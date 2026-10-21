@@ -1,26 +1,250 @@
-'use client';
-import {useEffect,useRef,useState} from 'react';
-import {Scissors,LayoutDashboard,CalendarDays,Users,Sparkles,Wallet,Plus,Search,ArrowUpRight,Clock,ChevronRight,X,Printer,Check,Menu} from 'lucide-react';
-import {Booking,Data,conflict,localDate,money,seed,staff} from '@/lib/model';
-const tabs=[['Overview',LayoutDashboard],['Appointments',CalendarDays],['Clients',Users],['Services',Sparkles],['Payments',Wallet]] as const;
-const key='salondesk:v1';
-export default function Home(){
-const [data,setData]=useState<Data|null>(null),[tab,setTab]=useState('Overview'),[query,setQuery]=useState(''),[date,setDate]=useState(localDate()),[modal,setModal]=useState<'booking'|'client'|'service'|null>(null),[receipt,setReceipt]=useState<Booking|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[mobile,setMobile]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
-useEffect(()=>{try{const saved=localStorage.getItem(key);const parsed=saved?JSON.parse(saved):null;if(parsed&&!Array.isArray(parsed.bookings))throw Error();setData(parsed||seed())}catch{setData(seed());setNotice('Saved data could not be loaded. Sample data restored.')}},[]);
-useEffect(()=>{if(data)try{localStorage.setItem(key,JSON.stringify(data))}catch{setNotice('Browser storage is unavailable. Changes will not survive a refresh.')}},[data]);
-useEffect(()=>{if(modal||receipt)dialog.current?.showModal();else dialog.current?.close()},[modal,receipt]);
-if(!data)return <main className="loading">Preparing your salon…</main>;
-const client=(id:string)=>data.clients.find(c=>c.id===id);const active=data.bookings.filter(b=>b.status!=='Cancelled');const today=active.filter(b=>b.date===date);const selected=data.bookings.filter(b=>b.date===date&&`${client(b.clientId)?.name} ${b.service} ${b.staff}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>a.time.localeCompare(b.time));const outstanding=active.reduce((s,b)=>s+b.total-b.paid,0),collected=active.reduce((s,b)=>s+b.paid,0);
-function open(kind:typeof modal){setError('');setModal(kind)}
-function save(e:React.FormEvent<HTMLFormElement>){e.preventDefault();if(!data)return;const f=new FormData(e.currentTarget);const str=(k:string)=>String(f.get(k)||'').trim();if(modal==='client'){setData({...data,clients:[...data.clients,{id:crypto.randomUUID(),name:str('name'),phone:str('phone')}]})}else if(modal==='service'){setData({...data,services:[...data.services,{id:crypto.randomUUID(),name:str('name'),category:str('category'),price:Number(str('price')),duration:Number(str('duration'))}]})}else {const s=data.services.find(s=>s.id===str('service'))!;const paid=Number(str('paid'));if(paid>s.price){setError('Advance cannot exceed the service price.');return}const b:Booking={id:'SD-'+crypto.randomUUID().slice(0,8).toUpperCase(),clientId:str('client'),service:s.name,staff:str('staff'),date:str('date'),time:str('time'),duration:s.duration,total:s.price,paid,status:'Confirmed'};if(conflict(data.bookings,b)){setError('This staff member already has an appointment during that time. Choose another time or staff member.');return}setData({...data,bookings:[...data.bookings,b]});setDate(b.date)}setModal(null);setNotice('Saved successfully.');}
-function status(b:Booking,value:Booking['status']){if(!data)return;const next={...b,status:value};if(conflict(data.bookings,next)){setNotice('Cannot restore: this appointment overlaps another booking.');return}setData({...data,bookings:data.bookings.map(x=>x.id===b.id?next:x)})}
-function payment(e:React.FormEvent<HTMLFormElement>){e.preventDefault();if(!data||!receipt)return;const amount=Number(new FormData(e.currentTarget).get('amount'));if(!Number.isFinite(amount)||amount<=0||amount>receipt.total-receipt.paid){setError('Enter an amount within the outstanding balance.');return}const next={...receipt,paid:receipt.paid+amount};setData({...data,bookings:data.bookings.map(b=>b.id===next.id?next:b)});setReceipt(next);setError('');e.currentTarget.reset()}
-return <div className="shell"><aside className={mobile?'sidebar visible':'sidebar'}><a className="brand" href="#"><span className="brandmark"><Scissors size={24}/></span>Salon<span>Desk</span><i/></a><div className="workspace"><span className="salonicon">S</span><div><strong>The Salon Studio</strong><small>Karachi, Pakistan</small></div><span className="demo">DEMO</span></div><p className="navlabel">WORKSPACE</p><nav>{tabs.map(([name,Icon])=><button key={name} className={tab===name?'navitem active':'navitem'} onClick={()=>{setTab(name);setQuery('');setMobile(false)}}><Icon size={19}/>{name}{name==='Appointments'&&<span>{active.length}</span>}</button>)}</nav><div className="sidebarbottom"><div className="help"><Sparkles size={20}/><strong>A little more ease.<br/>A lot more beauty.</strong><p>Your salon, all in one place.</p></div><div className="profile"><span className="avatar">AS</span><div><strong>Arman Saleem</strong><small>Salon administrator</small></div></div></div></aside><div className="main"><header><div className="breadcrumb"><button className="mobiletoggle iconbtn" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button>Workspace <ChevronRight size={14}/><strong>{tab}</strong></div><div className="headerend"><span className="live"><i/> Sample workspace</span><span className="avatar small">AS</span></div></header><main><div className="heading"><div><p className="eyebrow">YOUR SALON, IN SYNC</p><h1>{tab==='Overview'?'A beautiful day starts here.':tab}</h1><p className="subtitle">{tab==='Overview'?"A little clarity for your busy day. Here's what's happening.":'Less admin. More time for your clients.'}</p></div><button className="primary" onClick={()=>open(tab==='Clients'?'client':tab==='Services'?'service':'booking')}><Plus size={18}/>{tab==='Clients'?'Add client':tab==='Services'?'Add service':'New appointment'}</button></div>{notice&&<div role="status" className="notice">{notice}<button aria-label="Dismiss notification" onClick={()=>setNotice('')}><X size={16}/></button></div>}
-{tab==='Overview'&&<><div className="stats">{[{label:"Today's appointments",value:String(today.length).padStart(2,'0'),note:`${today.filter(b=>b.status==='Confirmed').length} confirmed appointments`,Icon:CalendarDays},{label:'Payments collected',value:money(collected),note:'Across active bookings',Icon:Wallet},{label:'Outstanding balance',value:money(outstanding),note:'Advances and balances to collect',Icon:Clock},{label:'Your clients',value:String(data.clients.length).padStart(2,'0'),note:'Every relationship, remembered',Icon:Users}].map(({label,value,note,Icon})=><div className="stat" key={label}><div><span>{label}</span><Icon size={19}/></div><strong>{value}</strong><small>{note}</small></div>)}</div><div className="feature"><div><span className="pill">A MOMENT TO PLAN</span><h2>Great experiences.<br/>Effortlessly organised.</h2><p>From the first booking to the final touch,<br/>keep every detail beautifully together.</p><button onClick={()=>{setTab('Appointments');open('booking')}}>Make room for someone new <ArrowUpRight size={17}/></button></div><div className="art" aria-hidden="true"><div className="arch"><Scissors size={76} strokeWidth={1}/><span>THE ART OF<br/><b>feeling beautiful.</b></span></div><div className="arttag"><Check size={14}/> A day well managed</div></div></div></>}
-{(tab==='Overview'||tab==='Appointments')&&<section className="panel"><div className="sectionhead"><div><h2>{tab==='Overview'?"Your appointment book":'Appointment schedule'}</h2><p>Every client. Every detail. Right on time.</p></div><input aria-label="Appointment date" type="date" value={date} onChange={e=>setDate(e.target.value)}/></div><div className="toolbar"><div className="segmented"><span className="selected">All appointments <b>{selected.length}</b></span></div><label className="search"><Search size={16}/><input placeholder="Search clients or services…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="tablewrap"><table><thead><tr><th>CLIENT</th><th>SERVICE / SPECIALIST</th><th>TIME</th><th>STATUS</th><th>BALANCE</th><th/></tr></thead><tbody>{selected.map(b=><tr key={b.id}><td><div className="person"><span className="initial">{client(b.clientId)?.name.split(' ').map(n=>n[0]).join('')}</span><div><strong>{client(b.clientId)?.name}</strong><small>{b.id}</small></div></div></td><td><strong>{b.service}</strong><small>{b.staff}</small></td><td><strong>{b.time}</strong><small>{b.duration} min</small></td><td><select aria-label={`Status for ${client(b.clientId)?.name}`} className={'status '+b.status.toLowerCase()} value={b.status} onChange={e=>status(b,e.target.value as Booking['status'])}>{['Confirmed','Pending','Completed','Cancelled'].map(s=><option key={s}>{s}</option>)}</select></td><td><strong>{money(b.total-b.paid)}</strong><small>{money(b.paid)} paid</small></td><td><button className="iconbtn" aria-label={`Receipt for ${client(b.clientId)?.name}`} onClick={()=>{setError('');setReceipt(b)}}><ArrowUpRight size={18}/></button></td></tr>)}</tbody></table>{!selected.length&&<div className="empty">No appointments found. Make space for a fresh start.</div>}</div><div className="panelbottom"><span>{selected.length} appointments · {date}</span><span>All times are salon local time</span></div></section>}
-{tab==='Clients'&&<><label className="search standalone"><Search size={17}/><input placeholder="Search by name or phone…" value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="cards">{data.clients.filter(c=>(c.name+c.phone).toLowerCase().includes(query.toLowerCase())).map(c=><article className="clientcard" key={c.id}><span className="initial large">{c.name.split(' ').map(n=>n[0]).join('')}</span><h2>{c.name}</h2><p>{c.phone}</p><div><span>{active.filter(b=>b.clientId===c.id).length} bookings</span><strong>{money(active.filter(b=>b.clientId===c.id).reduce((s,b)=>s+b.total-b.paid,0))} due</strong></div></article>)}</div></>}
-{tab==='Services'&&<div className="cards">{data.services.map(s=><article className="servicecard" key={s.id}><div className="serviceicon"><Sparkles size={24}/></div><span className="category">{s.category}</span><h2>{s.name}</h2><p><Clock size={15}/> {s.duration} minutes</p><div><strong>{money(s.price)}</strong><span>per session</span></div></article>)}</div>}
-{tab==='Payments'&&<><div className="stats two"><div className="stat"><span>Collected on active bookings</span><strong>{money(collected)}</strong></div><div className="stat"><span>Outstanding on active bookings</span><strong>{money(outstanding)}</strong></div></div><section className="panel"><div className="sectionhead"><div><h2>Payments & receipts</h2><p>Open a booking to record a payment or print its receipt.</p></div></div><div className="paymentlist">{data.bookings.map(b=><button key={b.id} onClick={()=>{setError('');setReceipt(b)}}><div><strong>{client(b.clientId)?.name}</strong><small>{b.service} · {b.date} · {b.status}</small></div><div><strong>{money(b.paid)} paid</strong><small>{money(b.total-b.paid)} balance</small></div><ChevronRight size={18}/></button>)}</div></section></>}
-<footer><span>SalonDesk <i/> Thoughtfully made for your salon.</span><span>Demo data only · Saved on this browser</span></footer></main></div>
-<dialog ref={dialog} onCancel={()=>{setModal(null);setReceipt(null)}}><div className="dialogtop"><span className="eyebrow">SALONDESK</span><button className="iconbtn" aria-label="Close dialog" onClick={()=>{setModal(null);setReceipt(null)}}><X/></button></div>{receipt?<><div className="receipt"><h2>Payment receipt</h2><p>The Salon Studio · Karachi</p><div className="receiptmeta"><strong>{receipt.id}</strong><span>{receipt.date} · {receipt.time}</span></div><h3>{client(receipt.clientId)?.name}</h3><p>{client(receipt.clientId)?.phone}</p><div className="receiptrow"><span>{receipt.service}<small>{receipt.staff} · {receipt.status}</small></span><strong>{money(receipt.total)}</strong></div><div className="receiptrow"><span>Amount paid</span><strong>{money(receipt.paid)}</strong></div><div className="receiptrow total"><span>Balance remaining</span><strong>{money(receipt.total-receipt.paid)}</strong></div><p className="receiptnote">Thank you for choosing us.<br/>Sample receipt · Not a tax invoice</p></div>{receipt.paid<receipt.total&&receipt.status!=='Cancelled'&&<form className="paymentform noprint" onSubmit={payment}><label>Record additional payment<input name="amount" aria-label="Payment amount" type="number" min="1" max={receipt.total-receipt.paid} step="1" required placeholder="Amount in PKR"/></label><button className="primary">Record payment</button></form>}{error&&<p className="error" role="alert">{error}</p>}<button className="secondary full noprint" onClick={()=>window.print()}><Printer size={17}/> Print receipt</button></>:<><h2>{modal==='booking'?'A new appointment':modal==='client'?'Meet your next regular':'Add something beautiful'}</h2><p className="subtitle">{modal==='booking'?'The first step to a lovely experience.':'Keep your salon details in one place.'}</p><form onSubmit={save} className="form" key={modal}>{modal==='booking'?<><label>Client<select name="client" required>{data.clients.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label><label>Service<select name="service" required>{data.services.map(s=><option key={s.id} value={s.id}>{s.name} · {money(s.price)} · {s.duration} min</option>)}</select></label><label>Specialist<select name="staff">{staff.map(s=><option key={s}>{s}</option>)}</select></label><div className="formrow"><label>Date<input type="date" name="date" defaultValue={date} required/></label><label>Time<input type="time" name="time" defaultValue="12:00" required/></label></div><label>Advance received (PKR)<input name="paid" type="number" min="0" step="1" defaultValue="0" required/></label></>:modal==='client'?<><label>Full name<input name="name" required maxLength={80}/></label><label>Phone number<input name="phone" type="tel" required maxLength={25} placeholder="03XX-XXXXXXX"/></label></>:<><label>Service name<input name="name" required maxLength={80}/></label><label>Category<select name="category">{['Hair','Skin','Makeup','Nails','Other'].map(c=><option key={c}>{c}</option>)}</select></label><div className="formrow"><label>Price (PKR)<input name="price" type="number" min="1" required/></label><label>Duration (minutes)<input name="duration" type="number" min="15" max="720" step="15" required/></label></div></>}{error&&<p className="error" role="alert">{error}</p>}<button className="primary full">{modal==='booking'?'Confirm appointment':'Save details'}<Check size={17}/></button></form></>}</dialog></div>
+import Link from "next/link";
+import {
+  ArrowUpRight,
+  Scissors,
+  Sparkles,
+  Flower2,
+  Heart,
+  Phone,
+  MapPin,
+} from "lucide-react";
+import BookingForm from "@/components/booking-form";
+import { configured } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { Service, money, sampleServices } from "@/lib/types";
+export const dynamic = "force-dynamic";
+export default async function Home() {
+  let services: Service[] = sampleServices;
+  let ready = false;
+  if (configured())
+    try {
+      const db = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      );
+      const { data, error } = await db
+        .from("salon_services")
+        .select("*")
+        .eq("active", true)
+        .order("price", { ascending: false });
+      if (!error && data) {
+        services = data;
+        ready = Boolean(process.env.SUPABASE_SECRET_KEY);
+      }
+    } catch {
+      /* Keep the public concept available while setup is pending. */
+    }
+  return (
+    <div className="publicsite">
+      <div className="conceptbar">
+        A website concept for MUSK · Illustrative packages & imagery
+      </div>
+      <nav className="publicnav">
+        <Link className="musklogo" href="/">
+          MUSK<span>BY LUBNA ARIF</span>
+        </Link>
+        <div>
+          <a href="#services">Our services</a>
+          <a href="#studio">The studio</a>
+          <a href="#gallery">The moodboard</a>
+        </div>
+        <a className="publiccta" href="#book">
+          Book your moment <ArrowUpRight size={15} />
+        </a>
+      </nav>
+      <main>
+        <section className="publichero">
+          <div className="herocopy">
+            <span className="publiceyebrow">
+              MAKEUP · HAIR · SKINCARE · BRIDAL
+            </span>
+            <h1>
+              Your beauty.
+              <br />
+              <em>Our artistry.</em>
+            </h1>
+            <p>
+              For the everyday glow and the once-in-a-lifetime moment. Discover
+              your next look at MUSK by Lubna Arif, Karachi.
+            </p>
+            <div className="heroactions">
+              <a className="primary" href="#book">
+                Find your moment <ArrowUpRight size={17} />
+              </a>
+              <a href="#services">
+                Explore our services <span>→</span>
+              </a>
+            </div>
+            <div className="heronote">
+              <span>♡</span> A little care. A beautiful feeling.
+            </div>
+          </div>
+          <div className="herovisual">
+            <img
+              src="/images/salon-interior.webp"
+              alt="Illustrative salon interior with styling chairs"
+            />
+            <span className="photoannotation">
+              An atmosphere to inspire your visit · stock image
+            </span>
+            <div className="herostamp">
+              MADE FOR
+              <br />
+              <em>your moment.</em>
+              <Sparkles size={18} />
+            </div>
+          </div>
+        </section>
+        <div className="valuesstrip">
+          <span>Bridal artistry</span>
+          <i>✧</i>
+          <span>Hair & styling</span>
+          <i>✧</i>
+          <span>Skin rituals</span>
+          <i>✧</i>
+          <span>A moment for you</span>
+        </div>
+        <section className="publicsection" id="services">
+          <div className="publicsectionhead">
+            <div>
+              <span className="publiceyebrow">THE MUSK EDIT</span>
+              <h2>
+                A little transformation.
+                <br />
+                <em>A lot of you.</em>
+              </h2>
+            </div>
+            <p>
+              Choose your service and let us help you plan your visit.
+              <br />
+              Prices below are illustrative for this concept.
+            </p>
+          </div>
+          <div className="publicservices">
+            {services.map((s, i) => {
+              const Icon = [Heart, Sparkles, Scissors, Flower2, Sparkles][
+                i % 5
+              ];
+              return (
+                <article key={s.id}>
+                  <span className="servicenumber">0{i + 1}</span>
+                  <Icon size={26} strokeWidth={1.2} />
+                  <span className="publiceyebrow">{s.category}</span>
+                  <h3>{s.name}</h3>
+                  <p>{s.duration} minutes of dedicated care.</p>
+                  <div>
+                    <strong>{money(s.price)}</strong>
+                    <a aria-label={`Request ${s.name}`} href="#book">
+                      <ArrowUpRight size={20} />
+                    </a>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+        <section id="studio" className="studioblock">
+          <div className="studioart">
+            <Flower2 size={150} strokeWidth={0.6} />
+            <span>
+              THE BEAUTY OF
+              <br />
+              <em>being yourself.</em>
+            </span>
+          </div>
+          <div>
+            <span className="publiceyebrow">MUSK BY LUBNA ARIF</span>
+            <h2>
+              Every occasion
+              <br />
+              deserves <em>a little care.</em>
+            </h2>
+            <p>
+              A bridal celebration, a fresh haircut or simply time for yourself.
+              Explore makeup, hair and skincare services, then tell us what you
+              have in mind.
+            </p>
+            <a href="#book" className="textlink">
+              Let’s plan your visit <ArrowUpRight size={17} />
+            </a>
+          </div>
+        </section>
+        <section id="gallery" className="publicsection">
+          <div className="publicsectionhead">
+            <div>
+              <span className="publiceyebrow">A LITTLE INSPIRATION</span>
+              <h2>
+                The beauty <em>moodboard.</em>
+              </h2>
+            </div>
+            <p>
+              Illustrative stock photography.
+              <br />
+              The salon’s own work will replace these before launch.
+            </p>
+          </div>
+          <div className="moodboard">
+            <figure>
+              <img
+                loading="lazy"
+                src="/images/beauty-essentials.webp"
+                alt="Makeup brushes and beauty essentials, illustrative stock photo"
+              />
+              <figcaption>THE FINISHING TOUCH</figcaption>
+            </figure>
+            <figure>
+              <img
+                loading="lazy"
+                src="/images/styling-space.webp"
+                alt="Salon styling space, illustrative stock photo"
+              />
+              <figcaption>A SPACE TO RESET</figcaption>
+            </figure>
+          </div>
+        </section>
+        <section id="book" className="bookingsection">
+          <div>
+            <span className="publiceyebrow">YOUR NEXT CHAPTER</span>
+            <h2>
+              Let’s make
+              <br />
+              <em>time for you.</em>
+            </h2>
+            <p>
+              Tell us your preferred service and time. The salon will contact
+              you to discuss your request and confirm availability.
+            </p>
+            <div className="contactline">
+              <MapPin size={19} />
+              <span>North Nazimabad, Karachi</span>
+            </div>
+            <a className="contactline" href="tel:+923304374405">
+              <Phone size={19} />
+              <span>0330 4374405</span>
+            </a>
+            <a
+              className="textlink"
+              href="https://wa.me/923304374405"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Prefer WhatsApp? Talk to the salon <ArrowUpRight size={17} />
+            </a>
+          </div>
+          <div className="bookingcard">
+            <h3>Your appointment request</h3>
+            <BookingForm services={services} enabled={ready} />
+          </div>
+        </section>
+      </main>
+      <footer className="publicfooter">
+        <Link className="musklogo" href="/">
+          MUSK<span>BY LUBNA ARIF</span>
+        </Link>
+        <p>Make time for yourself.</p>
+        <Link href="/login">Staff login ↗</Link>
+        <small>Independent concept demo · Not an official MUSK website</small>
+      </footer>
+    </div>
+  );
 }
