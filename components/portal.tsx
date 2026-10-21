@@ -33,6 +33,7 @@ type Modal = "booking" | "client" | "service" | "team" | "confirm" | null;
 const tabs = [
   ["Overview", LayoutDashboard],
   ["Requests", Inbox],
+  ["Messages", Inbox],
   ["Appointments", CalendarDays],
   ["Clients", Users],
   ["Services", Sparkles],
@@ -731,6 +732,48 @@ export default function Portal({ profile }: { profile: Profile }) {
                     ))}
                   </div>
                 </>
+              )}
+              {tab === "Messages" && (
+                <section className="panel">
+                  <div className="sectionhead">
+                    <div>
+                      <h2>Website messages</h2>
+                      <p>
+                        Contact inquiries from the public website. Replies are
+                        handled by phone or WhatsApp.
+                      </p>
+                    </div>
+                  </div>
+                  {!data.messages?.length && (
+                    <div className="empty">No messages yet.</div>
+                  )}
+                  {data.messages?.map((m) => (
+                    <article className="requestrow" key={m.id}>
+                      <div>
+                        <span className="category">
+                          {m.status} · {day(m.created_at)}
+                        </span>
+                        <h3>{m.name}</h3>
+                        <p>
+                          <a href={`tel:+${m.phone}`}>+{m.phone}</a>
+                        </p>
+                        <p className="requestnote">{m.message}</p>
+                      </div>
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() =>
+                          quick("message-status", {
+                            id: m.id,
+                            status: m.status === "New" ? "Handled" : "New",
+                          })
+                        }
+                      >
+                        {m.status === "New" ? "Mark handled" : "Reopen"}
+                      </button>
+                    </article>
+                  ))}
+                </section>
               )}
               {tab === "Payments" && (
                 <>

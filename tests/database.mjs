@@ -10,18 +10,15 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 grant usage on schema auth,public to anon,authenticated,service_role;
 grant execute on function auth.uid() to anon,authenticated,service_role;
 `);
-await db.exec(
-  readFileSync(
-    new URL(
-      "../supabase/migrations/" +
-        readdirSync(new URL("../supabase/migrations/", import.meta.url)).find(
-          (f) => f.endsWith(".sql"),
-        ),
-      import.meta.url,
+for (const f of readdirSync(new URL("../supabase/migrations/", import.meta.url))
+  .filter((f) => f.endsWith(".sql"))
+  .sort())
+  await db.exec(
+    readFileSync(
+      new URL("../supabase/migrations/" + f, import.meta.url),
+      "utf8",
     ),
-    "utf8",
-  ),
-);
+  );
 const owner = "10000000-0000-4000-8000-000000000001",
   reception = "10000000-0000-4000-8000-000000000002",
   stylist = "10000000-0000-4000-8000-000000000003",
@@ -163,5 +160,28 @@ assert.equal(
 );
 console.log(
   "PASS owner manages services; deactivation immediately removes stylist access",
+);
+await as("service_role");
+const msg = (
+  await db.query(
+    "insert into contact_messages(name,phone,message) values('Visitor','923008888888','Question about bridal makeup') returning id",
+  )
+).rows[0].id;
+await as("anon");
+await assert.rejects(db.query("select * from contact_messages"));
+await as("authenticated", other);
+assert.equal((await db.query("select * from contact_messages")).rows.length, 0);
+await as("authenticated", reception);
+assert.equal((await db.query("select * from contact_messages")).rows.length, 1);
+await db.query("update contact_messages set status='Handled' where id=$1", [
+  msg,
+]);
+await assert.rejects(
+  db.query("update contact_messages set message='changed text' where id=$1", [
+    msg,
+  ]),
+);
+console.log(
+  "PASS contact messages visible only to management; reception can mark handled but cannot rewrite messages",
 );
 await db.close();

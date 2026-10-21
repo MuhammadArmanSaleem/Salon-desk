@@ -83,3 +83,25 @@ The public site is an independent **concept demo**, not an official MUSK website
 - `photo-1521590832167-7bcbfaa6381f` — styling space
 
 Search indexing is disabled until the demo is approved for launch.
+
+## General contact inbox
+
+The second migration `20261021152753_contact_messages.sql` adds general website inquiries. Apply migrations in filename order on a new project. On the existing SalonDesk project both migrations have already been applied. Public form → `/api/contact` → `contact_messages` → management **Messages**. Owners and receptionists can read and mark messages handled; stylists cannot see them. Replies are manual. The server secret is required, just as for public appointment requests. Without it the form is disabled rather than pretending to send.
+
+## First owner without running a local script
+
+1. In your dedicated Supabase project, open **Authentication → Users → Add user → Create new user**. Enter your chosen admin email and a strong password, and confirm the email using the dashboard's auto-confirm option. This should not send an invitation email.
+2. In the SQL Editor, run the following after replacing `YOUR_ADMIN_EMAIL` with that exact email:
+
+```sql
+insert into public.staff_profiles (id, name, role, active)
+select id, 'Arman', 'owner', true
+from auth.users
+where email = 'YOUR_ADMIN_EMAIL'
+on conflict (id) do nothing;
+```
+
+3. Ensure the hosted app has `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and server-only `SUPABASE_SECRET_KEY`, then redeploy if you changed environment variables.
+4. Sign in at `/login`. Use **Team** to create other staff accounts. That screen requires the server secret. The database migration alone never creates authentication users or chooses passwords.
+
+Never commit your password or server secret to this repository.

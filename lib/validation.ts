@@ -52,3 +52,8 @@ export const teamSchema = z.object({
 export function canManage(role: string) {
   return role === "owner" || role === "receptionist";
 }
+
+export const contactSchema = clientSchema.extend({
+  message: z.string().trim().min(10).max(2000),
+  website: z.string().max(0).optional(),
+});

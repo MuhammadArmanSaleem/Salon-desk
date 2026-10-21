@@ -40,7 +40,16 @@ export type BookingRequest = {
   status: "Pending" | "Booked" | "Declined";
   created_at: string;
 };
+export type ContactMessage = {
+  id: string;
+  name: string;
+  phone: string;
+  message: string;
+  status: "New" | "Handled";
+  created_at: string;
+};
 export type PortalData = {
+  messages: ContactMessage[];
   profile: Profile;
   team: Profile[];
   services: Service[];

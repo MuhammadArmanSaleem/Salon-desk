@@ -36,12 +36,34 @@ export async function GET() {
             .select("*")
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
+      manage
+        ? db
+            .from("contact_messages")
+            .select("*")
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
     ]);
     queries.forEach((r) => databaseError(r.error));
-    const [team, services, clients, appointments, payments, requests] =
-      queries.map((r) => r.data || []);
+    const [
+      team,
+      services,
+      clients,
+      appointments,
+      payments,
+      requests,
+      messages,
+    ] = queries.map((r) => r.data || []);
     return NextResponse.json(
-      { profile, team, services, clients, appointments, payments, requests },
+      {
+        profile,
+        team,
+        services,
+        clients,
+        appointments,
+        payments,
+        requests,
+        messages,
+      },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (e) {
@@ -59,6 +81,17 @@ export async function POST(req: Request) {
     if (!canManage(profile.role) && action !== "status")
       throw new HttpError("Your role cannot perform this action.", 403);
     switch (action) {
+      case "message-status": {
+        const b = z
+          .object({ id: z.uuid(), status: z.enum(["New", "Handled"]) })
+          .parse(body);
+        const { error } = await db
+          .from("contact_messages")
+          .update({ status: b.status })
+          .eq("id", b.id);
+        databaseError(error);
+        break;
+      }
       case "client": {
         const values = clientSchema.parse(body);
         const { error } = await db.from("salon_clients").insert(values);
@@ -90,17 +123,15 @@ export async function POST(req: Request) {
         const starts_at = new Date(
           `${b.date}T${b.time}:00+05:00`,
         ).toISOString();
-        const { error } = await db
-          .from("salon_appointments")
-          .insert({
-            client_id: b.client_id,
-            service_id: b.service_id,
-            staff_id: b.staff_id,
-            starts_at,
-            ends_at: starts_at,
-            service_name: "",
-            total: 1,
-          });
+        const { error } = await db.from("salon_appointments").insert({
+          client_id: b.client_id,
+          service_id: b.service_id,
+          staff_id: b.staff_id,
+          starts_at,
+          ends_at: starts_at,
+          service_name: "",
+          total: 1,
+        });
         databaseError(error);
         break;
       }

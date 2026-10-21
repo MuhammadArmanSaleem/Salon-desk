@@ -8,6 +8,7 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
+import ContactForm from "@/components/contact-form";
 import BookingForm from "@/components/booking-form";
 import { configured } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
@@ -234,6 +235,24 @@ export default async function Home() {
           <div className="bookingcard">
             <h3>Your appointment request</h3>
             <BookingForm services={services} enabled={ready} />
+          </div>
+        </section>
+        <section id="contact" className="bookingsection">
+          <div>
+            <span className="publiceyebrow">LET’S TALK</span>
+            <h2>
+              A question
+              <br />
+              <em>before your visit?</em>
+            </h2>
+            <p>
+              Ask about a service, your occasion or planning your look. Your
+              message goes directly to the salon team’s dashboard.
+            </p>
+          </div>
+          <div className="bookingcard">
+            <h3>Send us a message</h3>
+            <ContactForm enabled={ready} />
           </div>
         </section>
       </main>
