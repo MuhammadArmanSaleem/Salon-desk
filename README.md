@@ -2,6 +2,31 @@
 
 A simple single-salon website and staff portal. Next.js App Router, TypeScript, Supabase Auth/Postgres, custom responsive CSS and Lucide icons.
 
+## Admin login and passwords
+
+**Yes: the owner/admin, receptionist and stylist each need their own email address and password.** There is no default admin account or shared password.
+
+- The password is the one you choose when creating that user's **Supabase Auth** account.
+- The SQL migration creates database tables and permissions; it does **not** create a login or password.
+- The `staff_profiles` record links the Auth user to the owner/receptionist/stylist role. Creating only the Auth user is not enough to access the portal.
+- `SUPABASE_SECRET_KEY` is an application server key, **not** the password you type on the login page.
+- Customers submitting appointment requests or contact messages do not need accounts.
+
+### First admin checklist
+
+1. Open your SalonDesk Supabase project → **Authentication → Users → Add user → Create new user**.
+2. Enter your chosen admin email and a strong, unique password (at least 12 characters). Use the dashboard's email-confirmed/auto-confirm option; do not choose an email invitation if you want to create the account directly.
+3. Run the owner-profile SQL in [First owner without running a local script](#first-owner-without-running-a-local-script), replacing `YOUR_ADMIN_EMAIL` with the same email.
+4. Add the three Supabase environment variables listed below to the hosting project. Redeploy after changing them.
+5. Visit `/login`, enter that **email and password**, then open `/admin`.
+6. In **Team**, create other staff with individual emails, initial passwords and roles. Team creation needs the server secret. Share credentials privately.
+
+### Password recovery
+
+This version has no in-app “Forgot password” or password-change screen. Manage recovery through Supabase Auth's supported dashboard/Auth recovery flow. Do not change a password in `staff_profiles`: passwords are managed by Supabase Auth. Deactivating a profile removes salon access without deleting payment or appointment history.
+
+Never put passwords, server secrets or real account credentials in this README, source code or GitHub commits.
+
 ## What is included
 
 - `/`: MUSK-branded public landing page, service menu, illustrative moodboard and appointment request form. No customer account required.
@@ -36,7 +61,7 @@ Open http://localhost:3000. Without credentials the landing page works with clea
 ## Connect a dedicated Supabase project
 
 1. Create a separate project for SalonDesk. Do not use another client's database.
-2. In the Supabase SQL Editor, run `supabase/migrations/20261021104711_salon_portal.sql`. This creates the schema, policies, triggers, transaction function and sample service menu. Run it once in a fresh project. Alternatively link the CLI and apply with `npx supabase db push`.
+2. In the Supabase SQL Editor, apply `supabase/migrations/20261021104711_salon_portal.sql`, then `supabase/migrations/20261021152753_contact_messages.sql` in that order. This creates the schema, policies, triggers, transaction function and sample service menu. Run it once in a fresh project. Alternatively link the CLI and apply with `npx supabase db push`.
 3. Set `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`: project API URL.
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: public publishable key.
