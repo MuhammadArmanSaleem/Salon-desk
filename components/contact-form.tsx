@@ -1,11 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 export default function ContactForm({ enabled }: { enabled: boolean }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
+  const submitting = useRef(false);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setMessage("");
     setError("");
@@ -23,6 +26,7 @@ export default function ContactForm({ enabled }: { enabled: boolean }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not send your message.");
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

@@ -1814,3 +1814,77 @@ textarea {
     display: none !important;
   }
 }
+
+.menu-backdrop,
+.drawer-close {
+  display: none;
+}
+@media (max-width: 800px) {
+  .menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    border: 0;
+    background: #1d302b88;
+    backdrop-filter: blur(2px);
+  }
+  .sidebar.visible {
+    inset: 0 auto 0 0;
+    width: min(320px, 86vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    z-index: 21;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 26px 20px max(22px, env(safe-area-inset-bottom));
+    box-shadow: 12px 0 45px #182b2450;
+  }
+  .drawer-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 13px;
+    top: 17px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: white;
+    color: var(--green);
+  }
+  .sidebar .brand {
+    padding-right: 40px;
+    font-size: 23px;
+    flex-shrink: 0;
+  }
+  .sidebar .workspace {
+    margin-top: 27px;
+    flex-shrink: 0;
+  }
+  .sidebar nav {
+    flex-shrink: 0;
+  }
+  .sidebar .sidebarbottom {
+    padding-top: 22px;
+    flex-shrink: 0;
+  }
+}
+.requestrow > div,
+.person > div {
+  min-width: 0;
+}
+.requestnote,
+.receipt h3,
+.receiptrow span,
+.clientcard h2,
+.servicecard h2 {
+  overflow-wrap: anywhere;
+}
+@media print {
+  .menu-backdrop,
+  .drawer-close {
+    display: none !important;
+  }
+}

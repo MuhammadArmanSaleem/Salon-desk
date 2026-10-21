@@ -14,6 +14,11 @@ export function sameOrigin(req: Request) {
     throw new HttpError("Invalid request origin.", 403);
 }
 export function fail(error: unknown) {
+  if (error instanceof SyntaxError)
+    return NextResponse.json(
+      { error: "Invalid JSON request." },
+      { status: 400 },
+    );
   if (error instanceof HttpError)
     return NextResponse.json(
       { error: error.message },

@@ -51,8 +51,53 @@ export default function Portal({ profile }: { profile: Profile }) {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
-    [mobile, setMobile] = useState(false);
+    [mobile, setMobile] = useState(false),
+    [stale, setStale] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobile) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusable = () =>
+      Array.from(
+        sidebar.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex="0"]',
+        ) || [],
+      );
+    focusable()[0]?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobile(false);
+      }
+      if (event.key === "Tab") {
+        const items = focusable();
+        const first = items[0],
+          last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    const breakpoint = window.matchMedia("(min-width: 801px)");
+    const resized = () => {
+      if (breakpoint.matches) setMobile(false);
+    };
+    document.addEventListener("keydown", keydown);
+    breakpoint.addEventListener("change", resized);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", keydown);
+      breakpoint.removeEventListener("change", resized);
+      menuButton.current?.focus({ preventScroll: true });
+    };
+  }, [mobile]);
   const manage = canManage(profile.role);
   const owner = profile.role === "owner";
   const load = useCallback(async () => {
@@ -64,6 +109,7 @@ export default function Portal({ profile }: { profile: Profile }) {
     }
     if (!r.ok) throw Error(b.error);
     setData(b);
+    setStale(false);
   }, []);
   useEffect(() => {
     load().catch((e) => setNotice(e.message));
@@ -84,14 +130,18 @@ export default function Portal({ profile }: { profile: Profile }) {
     });
     const b = await r.json();
     if (!r.ok) throw Error(b.error);
-    await load();
+    try {
+      await load();
+    } catch {
+      setStale(true);
+    }
   }
   async function quick(
     action: string,
     values: Record<string, unknown>,
     team = false,
   ) {
-    if (busy) return;
+    if (busy || stale) return;
     setBusy(true);
     try {
       await mutate(action, values, team);
@@ -109,7 +159,7 @@ export default function Portal({ profile }: { profile: Profile }) {
   }
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || stale) return;
     setBusy(true);
     setError("");
     const values = Object.fromEntries(new FormData(e.currentTarget));
@@ -133,7 +183,7 @@ export default function Portal({ profile }: { profile: Profile }) {
   }
   async function payment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || !receipt) return;
+    if (busy || stale || !receipt) return;
     const form = e.currentTarget;
     setBusy(true);
     setError("");
@@ -188,7 +238,31 @@ export default function Portal({ profile }: { profile: Profile }) {
     data?.team.filter((p) => p.active && p.role === "stylist") || [];
   return (
     <div className="shell">
-      <aside className={mobile ? "sidebar visible" : "sidebar"}>
+      {mobile && (
+        <button
+          type="button"
+          className="menu-backdrop"
+          aria-label="Close navigation backdrop"
+          tabIndex={-1}
+          onClick={() => setMobile(false)}
+        />
+      )}
+      <aside
+        ref={sidebar}
+        id="workspace-navigation"
+        role={mobile ? "dialog" : undefined}
+        aria-modal={mobile ? true : undefined}
+        aria-label="Workspace navigation"
+        className={mobile ? "sidebar visible" : "sidebar"}
+      >
+        <button
+          type="button"
+          className="drawer-close"
+          aria-label="Close navigation"
+          onClick={() => setMobile(false)}
+        >
+          <X size={22} />
+        </button>
         <Link className="brand" href="/">
           <span className="brandmark">
             <Scissors size={24} />
@@ -261,12 +335,15 @@ export default function Portal({ profile }: { profile: Profile }) {
           </div>
         </div>
       </aside>
-      <div className="main">
+      <div className="main" inert={mobile}>
         <header>
           <div className="breadcrumb">
             <button
               className="mobiletoggle iconbtn"
               aria-label="Toggle navigation"
+              ref={menuButton}
+              aria-expanded={mobile}
+              aria-controls="workspace-navigation"
               onClick={() => setMobile(!mobile)}
             >
               <Menu />
@@ -317,7 +394,7 @@ export default function Portal({ profile }: { profile: Profile }) {
               (tab !== "Services" || owner) && (
                 <button
                   className="primary"
-                  disabled={!data || busy}
+                  disabled={!data || busy || stale}
                   onClick={() =>
                     open(
                       tab === "Clients"
@@ -351,6 +428,13 @@ export default function Portal({ profile }: { profile: Profile }) {
                 <X size={16} />
               </button>
             </div>
+          )}
+          {stale && (
+            <p role="alert" className="error">
+              The last change was saved, but the dashboard could not reload. Use
+              Refresh data before making another change to avoid recording it
+              twice.
+            </p>
           )}
           {!data ? (
             <div className="empty">
@@ -519,7 +603,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                                 <select
                                   aria-label={`Status for ${client(b.client_id)?.name}`}
                                   className={"status " + b.status.toLowerCase()}
-                                  disabled={busy}
+                                  disabled={busy || stale}
                                   value={b.status}
                                   onChange={(e) =>
                                     quick("status", {
@@ -536,7 +620,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                                 </select>
                               ) : b.status === "Confirmed" ? (
                                 <button
-                                  disabled={busy}
+                                  disabled={busy || stale}
                                   className="secondary"
                                   onClick={() =>
                                     quick("status", {
@@ -622,14 +706,14 @@ export default function Portal({ profile }: { profile: Profile }) {
                       <div className="requestactions">
                         <button
                           className="primary"
-                          disabled={busy}
+                          disabled={busy || stale}
                           onClick={() => open("confirm", r)}
                         >
                           Confirm booking
                         </button>
                         <button
                           className="secondary"
-                          disabled={busy}
+                          disabled={busy || stale}
                           onClick={() => quick("decline-request", { id: r.id })}
                         >
                           Decline
@@ -715,7 +799,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                           <strong>{money(s.price)}</strong>
                           {owner && (
                             <button
-                              disabled={busy}
+                              disabled={busy || stale}
                               className="secondary"
                               onClick={() =>
                                 quick("service-toggle", {
@@ -761,7 +845,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                       </div>
                       <button
                         className="secondary"
-                        disabled={busy}
+                        disabled={busy || stale}
                         onClick={() =>
                           quick("message-status", {
                             id: m.id,
@@ -849,7 +933,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                         <label>
                           Role
                           <select
-                            disabled={busy || p.id === profile.id}
+                            disabled={busy || stale || p.id === profile.id}
                             value={p.role}
                             onChange={(e) =>
                               quick(
@@ -870,7 +954,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                         </label>
                         <button
                           className="secondary full"
-                          disabled={busy || p.id === profile.id}
+                          disabled={busy || stale || p.id === profile.id}
                           onClick={() =>
                             quick(
                               "update",
@@ -896,7 +980,11 @@ export default function Portal({ profile }: { profile: Profile }) {
       </div>
       <dialog
         ref={dialog}
-        onCancel={() => {
+        onCancel={(event) => {
+          if (busy) {
+            event.preventDefault();
+            return;
+          }
           if (!busy) {
             setModal(null);
             setReceipt(null);
@@ -917,6 +1005,12 @@ export default function Portal({ profile }: { profile: Profile }) {
             <X />
           </button>
         </div>
+        {stale && (
+          <p role="alert" className="error">
+            Saved, but the dashboard could not reload. Close this receipt and
+            use Refresh data before recording another payment.
+          </p>
+        )}
         {receiptCurrent ? (
           <>
             <div className="receipt">
@@ -999,7 +1093,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                       <option>Bank transfer</option>
                     </select>
                   </label>
-                  <button className="primary" disabled={busy}>
+                  <button className="primary" disabled={busy || stale}>
                     {busy ? "Saving…" : "Record payment"}
                   </button>
                 </form>
@@ -1227,6 +1321,7 @@ export default function Portal({ profile }: { profile: Profile }) {
                 className="primary full"
                 disabled={
                   busy ||
+                  stale ||
                   ((modal === "booking" || modal === "confirm") &&
                     !stylists.length)
                 }

@@ -42,3 +42,8 @@ test("rejects bot honeypot and non-positive payments; only management roles mana
   assert.equal(canManage("owner"), true);
   assert.equal(canManage("receptionist"), true);
 });
+
+test("phone validation rejects alphabetic contamination", () => {
+  assert.equal(phoneSchema.safeParse("abc03001234567").success, false);
+  assert.equal(phoneSchema.safeParse("+92 (300) 123-4567").success, true);
+});

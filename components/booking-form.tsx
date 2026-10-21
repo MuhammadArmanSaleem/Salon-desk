@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Service } from "@/lib/types";
 export default function BookingForm({
   services,
@@ -11,8 +11,11 @@ export default function BookingForm({
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
+  const submitting = useRef(false);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     const form = e.currentTarget;
     setBusy(true);
     setError("");
@@ -32,6 +35,7 @@ export default function BookingForm({
         e instanceof Error ? e.message : "Could not submit your request.",
       );
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 export const phoneSchema = z
   .string()
+  .regex(/^[+0-9\s()\-]+$/, "Enter a valid phone number without letters.")
   .transform((v) => {
     const n = v.replace(/[^0-9]/g, "");
     return n.startsWith("0") ? "92" + n.slice(1) : n;
