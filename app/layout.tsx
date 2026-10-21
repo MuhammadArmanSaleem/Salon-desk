@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import PageMotion from "@/components/page-motion";
 export const metadata: Metadata = {
   title: "MUSK by Lubna Arif — Salon & Bridal Studio",
   description:
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <PageMotion />
+      </body>
     </html>
   );
 }

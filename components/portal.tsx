@@ -370,7 +370,7 @@ export default function Portal({ profile }: { profile: Profile }) {
             </Link>
           </div>
         </header>
-        <main>
+        <main key={tab} className="workspace-view">
           <div className="heading">
             <div>
               <p className="eyebrow">MUSK · MANAGEMENT STUDIO</p>
@@ -437,7 +437,14 @@ export default function Portal({ profile }: { profile: Profile }) {
             </p>
           )}
           {!data ? (
-            <div className="empty">
+            <div className="empty" role="status" aria-live="polite">
+              {!notice && (
+                <div className="loading-bars" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              )}
               {notice
                 ? "Unable to load the workspace. Use refresh to retry."
                 : "Loading your salon…"}
